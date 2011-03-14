@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Wavebox Demo</string>
+    <string name="record">Record</string>
+    <string name="play">Play</string>
+    <string name="welcome">Welcome to Wavebox Demo!</string>
+    <string name="sorry">Sorry!</string>
+    <string name="external_storage_not_available">External storage is not available.</string>
+    <string name="recording_failed">Cannot record audio file.</string>
+    <string name="playback_failed">Cannot play audio file.</string>
+    <string name="record_not_found">Record not found.</string>
+    <string name="recording">Recording...</string>
+    <string name="playing">Playing...</string>
+    <string name="select_sample_rate">Select a sample rate:</string>
+    <string name="sample_rate">%1$d Hz</string>
+</resources>
