@@ -135,7 +135,7 @@ public class WavePlayer {
      */
     public void stop() {
         if (fileReader != null) {
-            fileReader.playing.set(true);
+            fileReader.playing.set(false);
             
             // let the worker thread stop by itself
             if (fileReader.isAlive()) {
