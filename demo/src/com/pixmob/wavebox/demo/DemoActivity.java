@@ -199,7 +199,7 @@ public class DemoActivity extends Activity implements WaveListener {
         outState.putInt("selectedSampleRate", selectedSampleRate);
     }
     
-    public void onWaveEvent(String filePath, int event) {
+    public void onWaveEvent(int event, String filePath, float position) {
         if (PLAYBACK_STOPPED == event) {
             waveEventHandler.sendEmptyMessage(event);
         } else if (RECORDING_STOPPED == event) {
