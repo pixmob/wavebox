@@ -28,6 +28,7 @@ import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.channels.FileChannel;
 import java.util.Arrays;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import android.media.AudioFormat;
@@ -90,8 +91,7 @@ public class WavePlayer {
      * Pause playback.
      */
     public void pause() {
-        Log.w(TAG, "Pause not implemented!");
-        // TODO implement method pause
+        fileReader.pause();
     }
     
     /**
@@ -135,7 +135,7 @@ public class WavePlayer {
      */
     public void stop() {
         if (fileReader != null) {
-            fileReader.playing.set(false);
+            fileReader.abort();
             
             // let the worker thread stop by itself
             if (fileReader.isAlive()) {
@@ -204,7 +204,8 @@ public class WavePlayer {
     private class FileReader extends Thread {
         private final AudioTrack audioPlayer;
         private final byte[] buffer;
-        public final AtomicBoolean playing = new AtomicBoolean();
+        private final AtomicBoolean playing = new AtomicBoolean();
+        private volatile CountDownLatch pauseSignal;
         
         public FileReader(final AudioTrack audioPlayer, final byte[] buffer) {
             super("WavePlayer");
@@ -221,6 +222,21 @@ public class WavePlayer {
                         + filePath, e);
             } catch (Exception e) {
                 Log.e(TAG, "Unexpected error", e);
+            }
+        }
+        
+        public void pause() {
+            if (pauseSignal == null) {
+                pauseSignal = new CountDownLatch(1);
+            } else {
+                pauseSignal.countDown();
+            }
+        }
+        
+        public void abort() {
+            playing.set(false);
+            if (pauseSignal != null) {
+                pauseSignal.countDown();
             }
         }
         
@@ -262,6 +278,17 @@ public class WavePlayer {
                             Log.e(TAG, "Faileed to play audio data");
                             break;
                         }
+                    }
+                    
+                    if (pauseSignal != null) {
+                        audioPlayer.pause();
+                        try {
+                            pauseSignal.await();
+                            audioPlayer.play();
+                        } catch (InterruptedException e) {
+                            playing.set(false);
+                        }
+                        pauseSignal = null;
                     }
                 }
             } finally {

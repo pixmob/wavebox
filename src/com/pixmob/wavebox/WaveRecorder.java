@@ -28,6 +28,7 @@ import java.lang.ref.WeakReference;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.channels.FileChannel;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import android.media.AudioFormat;
@@ -109,8 +110,7 @@ public class WaveRecorder {
      * Pause recording.
      */
     public void pause() {
-        Log.w(TAG, "Pause not implemented!");
-        // TODO implement method pause
+        fileWriter.pause();
     }
     
     /**
@@ -144,7 +144,7 @@ public class WaveRecorder {
      */
     public void stop() {
         if (fileWriter != null) {
-            fileWriter.recording.set(false);
+            fileWriter.abort();
             
             // let the worker thread stop by itself
             if (fileWriter.isAlive()) {
@@ -169,7 +169,8 @@ public class WaveRecorder {
     private class FileWriter extends Thread {
         private final AudioRecord audioRecorder;
         private final ByteBuffer buffer;
-        public final AtomicBoolean recording = new AtomicBoolean();
+        private final AtomicBoolean recording = new AtomicBoolean();
+        private volatile CountDownLatch pauseSignal;
         
         public FileWriter(final AudioRecord audioRecorder,
                 final ByteBuffer buffer) {
@@ -187,6 +188,21 @@ public class WaveRecorder {
                         + filePath, e);
             } catch (Exception e) {
                 Log.e(TAG, "Unexpected error", e);
+            }
+        }
+        
+        public void pause() {
+            if (pauseSignal == null) {
+                pauseSignal = new CountDownLatch(1);
+            } else {
+                pauseSignal.countDown();
+            }
+        }
+        
+        public void abort() {
+            recording.set(false);
+            if (pauseSignal != null) {
+                pauseSignal.countDown();
             }
         }
         
@@ -279,6 +295,15 @@ public class WaveRecorder {
                 fc.position(0);
                 while (header.hasRemaining() && fc.isOpen()) {
                     fc.write(header);
+                }
+                
+                if (pauseSignal != null) {
+                    try {
+                        pauseSignal.await();
+                    } catch (InterruptedException e) {
+                        recording.set(false);
+                    }
+                    pauseSignal = null;
                 }
             } finally {
                 audioRecorder.stop();
